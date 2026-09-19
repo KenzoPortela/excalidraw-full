@@ -1,0 +1,63 @@
+# Excalidraw Full + Dex, adapté pour Coolify (Traefik gère le HTTPS et le routage)
+
+services:
+  dex:
+    image: dexidp/dex:v2.38.0
+    restart: unless-stopped
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./config/dex.config.yaml:/etc/dex/config.yaml:ro
+    environment:
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-excalidraw}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - ADMIN_USER_ID=${ADMIN_USER_ID:-admin1234}
+    expose:
+      - "5556"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:5556/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Crée le fichier SQLite avant le démarrage (sinon l'app refuse de se lancer)
+  init-db:
+    image: busybox:latest
+    command: ["sh", "-c", "touch /root/data/excalidraw.db"]
+    volumes:
+      - excalidraw-data:/root/data
+    restart: "no"
+    exclude_from_hc: true
+
+  excalidraw:
+    image: ghcr.io/betterandbetterii/excalidraw-full:latest
+    # Si "exec format error" (image non dispo en ARM), remplace la ligne image par :
+    # build:
+    #   context: .
+    #   dockerfile: excalidraw-complete.Dockerfile
+    restart: unless-stopped
+    environment:
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-excalidraw}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - STORAGE_TYPE=sqlite
+      - DATA_SOURCE_NAME=/root/data/excalidraw.db
+    volumes:
+      - excalidraw-data:/root/data
+    expose:
+      - "3002"
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+      dex:
+        condition: service_healthy
+
+volumes:
+  excalidraw-data:
