@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     volumes:
-      - ./config/dex.config.yaml:/etc/dex/config.yaml:ro
+      - ./config/dex.config.yaml:/etc/dex/config.yaml
     environment:
       - OIDC_ISSUER=${OIDC_ISSUER}
       - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL}
