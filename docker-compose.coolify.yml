@@ -99,6 +99,9 @@ services:
       - traefik.http.routers.draw-https.tls=true
       - traefik.http.routers.draw-https.tls.certresolver=letsencrypt
       - traefik.http.routers.draw-https.service=draw
+      # accès restreint aux IP listées dans ALLOWED_IPS (ex: 1.2.3.4/32, séparées par des virgules)
+      - traefik.http.routers.draw-https.middlewares=draw-ipallow
+      - traefik.http.middlewares.draw-ipallow.ipallowlist.sourcerange=${ALLOWED_IPS}
       - traefik.http.services.draw.loadbalancer.server.port=3002
 
 volumes:
