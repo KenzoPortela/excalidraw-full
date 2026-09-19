@@ -9,7 +9,37 @@ services:
   dex:
     image: dexidp/dex:v2.38.0
     restart: unless-stopped
-    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    # Pas de fichier monté : la config est écrite au démarrage puis rendue par
+    # l'entrypoint de Dex (gomplate). Le hash est passé en base64 pour éviter
+    # que Docker Compose n'interprète les `$` du hash bcrypt.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /tmp/dex.config.yaml <<'EOF'
+        issuer: {{ .Env.OIDC_ISSUER }}
+        storage:
+          type: memory
+        web:
+          http: 0.0.0.0:5556
+          allowedOrigins: ["*"]
+        logger:
+          level: info
+          format: text
+        enablePasswordDB: true
+        staticClients:
+          - id: excalidraw
+            redirectURIs:
+              - {{ .Env.OIDC_REDIRECT_URL }}
+            name: Excalidraw
+            public: true
+            secret: {{ .Env.OIDC_CLIENT_SECRET }}
+        staticPasswords:
+          - email: {{ .Env.ADMIN_EMAIL }}
+            hash: "{{ .Env.ADMIN_PASSWORD_HASH_B64 | base64.Decode }}"
+            username: {{ .Env.ADMIN_USERNAME }}
+            userID: {{ .Env.ADMIN_USER_ID }}
+        EOF
+        exec /usr/local/bin/docker-entrypoint dex serve /tmp/dex.config.yaml
     environment:
       OIDC_ISSUER: https://${AUTH_DOMAIN}
       OIDC_REDIRECT_URL: https://${DRAW_DOMAIN}/auth/callback
@@ -17,35 +47,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_USERNAME: admin
       ADMIN_USER_ID: admin1234
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
-    volumes:
-      # Coolify crée le fichier à partir de `content` (sinon Docker crée un dossier)
-      - type: bind
-        source: ./config/dex.config.yaml
-        target: /etc/dex/config.yaml
-        content: |
-          issuer: {{ .Env.OIDC_ISSUER }}
-          storage:
-            type: memory
-          web:
-            http: 0.0.0.0:5556
-            allowedOrigins: ["*"]
-          logger:
-            level: info
-            format: text
-          enablePasswordDB: true
-          staticClients:
-            - id: excalidraw
-              redirectURIs:
-                - {{ .Env.OIDC_REDIRECT_URL }}
-              name: Excalidraw
-              public: true
-              secret: {{ .Env.OIDC_CLIENT_SECRET }}
-          staticPasswords:
-            - email: {{ .Env.ADMIN_EMAIL }}
-              hash: "{{ .Env.ADMIN_PASSWORD_HASH }}"
-              username: {{ .Env.ADMIN_USERNAME }}
-              userID: {{ .Env.ADMIN_USER_ID }}
+      ADMIN_PASSWORD_HASH_B64: ${ADMIN_PASSWORD_HASH_B64}
     expose:
       - "5556"
     healthcheck:
