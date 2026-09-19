@@ -56,17 +56,6 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.dex-http.entrypoints=http
-      - traefik.http.routers.dex-http.rule=Host(`${AUTH_DOMAIN}`)
-      - traefik.http.routers.dex-http.middlewares=redirect-to-https
-      - traefik.http.routers.dex-https.entrypoints=https
-      - traefik.http.routers.dex-https.rule=Host(`${AUTH_DOMAIN}`)
-      - traefik.http.routers.dex-https.tls=true
-      - traefik.http.routers.dex-https.tls.certresolver=letsencrypt
-      - traefik.http.routers.dex-https.service=dex
-      - traefik.http.services.dex.loadbalancer.server.port=5556
 
   excalidraw:
     image: ghcr.io/betterandbetterii/excalidraw-full:latest
@@ -89,20 +78,6 @@ services:
         condition: service_completed_successfully
       dex:
         condition: service_healthy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.draw-http.entrypoints=http
-      - traefik.http.routers.draw-http.rule=Host(`${DRAW_DOMAIN}`)
-      - traefik.http.routers.draw-http.middlewares=redirect-to-https
-      - traefik.http.routers.draw-https.entrypoints=https
-      - traefik.http.routers.draw-https.rule=Host(`${DRAW_DOMAIN}`)
-      - traefik.http.routers.draw-https.tls=true
-      - traefik.http.routers.draw-https.tls.certresolver=letsencrypt
-      - traefik.http.routers.draw-https.service=draw
-      # accès restreint aux IP listées dans ALLOWED_IPS (ex: 1.2.3.4/32, séparées par des virgules)
-      - traefik.http.routers.draw-https.middlewares=draw-ipallow
-      - traefik.http.middlewares.draw-ipallow.ipallowlist.sourcerange=${ALLOWED_IPS}
-      - traefik.http.services.draw.loadbalancer.server.port=3002
 
 volumes:
   excalidraw-data:
